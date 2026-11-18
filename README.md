@@ -51,15 +51,23 @@ LICENSE                       # MIT
 
 ## Safety properties
 
-- **Deploy gated behind lint + build** — broken code never ships
+- **Deploy gated behind lint + build** — broken code never ships (optional
+  typecheck/test stages where the project has them)
 - **Non-destructive by default** — FTP uploads never delete; rsync without
   `--delete`; deploys serialized so two pushes can't race
 - **Immutable deploys** — the Docker pattern tags images by commit SHA and
-  redeploys that exact tag
-- **Encrypted transports** — explicit FTPS (AUTH TLS), SSH with pinned host keys
-- **Secrets stay in the GitHub vault** — never on disk, never in logs
+  verifies the running container runs that exact image
+- **TLS verified by default** — FTPS cert verification ON; the insecure
+  escape hatch is an explicit, logged, visible-in-repo flag
+- **Host keys verified from a trusted channel** — no blind trust-on-first-use
+- **Encrypted transports** — explicit FTPS (AUTH TLS), SSH with pinned keys
+- **Secrets stay in the GitHub vault** — never on disk, never in logs; even
+  the short-lived runner registration token is kept out of container metadata
 - **Least-privilege access** — jailed FTP subaccounts, built-in `GITHUB_TOKEN`
-  for registry pushes, webhook tokens in secrets (never in URLs in logs)
+  for registry pushes, webhook tokens in secrets (never in URLs in logs),
+  fork PRs never touch the self-hosted runner
+- **Verify + roll back** — live-content verification checklist and a rollback
+  path for every pattern
 
 ## Who is this for
 
