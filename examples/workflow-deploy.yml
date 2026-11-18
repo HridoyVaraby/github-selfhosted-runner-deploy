@@ -1,0 +1,52 @@
+name: CI & Deploy (production)
+
+# Template: build gates + upload-only FTPS deploy on push to production branch.
+# Adjust: branch name, package-manager commands, build dir if not "dist".
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch: {}
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  ci-deploy:
+    name: Verify build & deploy to cPanel
+    runs-on: self-hosted
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Node FIRST — pnpm >= 10's installer needs node on PATH
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      # For npm projects delete the pnpm step and use npm ci below.
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # Do NOT add `cache:` to setup-node — it fails on bare self-hosted containers.
+
+      - name: Lint (gate)
+        run: pnpm lint
+
+      - name: Build (gate)
+        run: pnpm build
+
+      - name: Deploy build output via FTPS (upload-only, never deletes)
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_PORT: ${{ secrets.FTP_PORT }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+        run: node scripts/ftp-deploy.mjs
